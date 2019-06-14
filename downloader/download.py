@@ -4,9 +4,9 @@ import subprocess
 import re
 import os
 
-INCOMING_DIR = "/home/2hatzel/reddit/reddit_incoming"
+INCOMING_DIR = "/home/2hatzel/reddit_incoming"
 HDFS_REDDIT_DATA_DIR = "/user/2hatzel/reddit"
-BASE_URL = "https://files.pushshift.io/reddit/"
+BASE_URL = "https://files.pushshift.io/reddit"
 
 
 def main():
@@ -14,8 +14,8 @@ def main():
         get_hdfs_file_list("comments"),
         get_hdfs_file_list("submissions"),
     ]
-    comment_files = get_pushshift_file_list("comments")
-    post_files = get_pushshift_file_list("submissions")
+    comment_files = set(get_pushshift_file_list("comments"))
+    post_files = set(get_pushshift_file_list("submissions"))
     for file_name in comment_files:
         if file_name not in hdfs_comment_files:
             if download("comments", file_name):
@@ -27,16 +27,13 @@ def main():
 
 
 def push_to_hdfs(data_type, file_name):
-    if file_name.endswith("zstd"):
-        print("Keeping zstd file around, cant move to hdfs for now")
-        return
     path = f"{INCOMING_DIR}/{data_type}/{file_name}"
     ret = subprocess.run([
         "hdfs",
         "dfs",
         "-D",
-        "dfs.replication=2"
-        "-pushFromLocal",
+        "dfs.replication=2",
+        "-copyFromLocal",
         path,
         f"{HDFS_REDDIT_DATA_DIR}/{data_type}"
     ])
@@ -49,16 +46,18 @@ def push_to_hdfs(data_type, file_name):
 
 
 def download(data_type, file_name):
+    print(f"Downloading {file_name}...")
     ret = subprocess.run([
         "wget",
-        "--append-output=/tmp/reddit-download-log",
-        "-c", f"{BASE_URL}/{data_type}/{file_name}",
-        "-O", f"{INCOMING_DIR}/{data_type}/{file_name}"
+        "--output-file=/tmp/reddit-download-log",
+        "-c",
+        "-O", f"{INCOMING_DIR}/{data_type}/{file_name}",
+        f"{BASE_URL}/{data_type}/{file_name}",
     ])
     if ret.returncode == 0:
         print(f"Successfully downloaded {file_name}.")
     else:
-        print(f"Failed to download {file_name}")
+        print(f"Failed to download {file_name}: {ret.stderr}, {ret.stdout}")
     return ret.returncode == 0
 
 
@@ -80,7 +79,6 @@ def get_hdfs_file_list(data_type):
     file_name_pattern = re.compile(
         f"{re.escape(HDFS_REDDIT_DATA_DIR)}/{data_type}/(.+)\n"
     )
-    print(ret.stdout.decode("utf-8"))
     matches = file_name_pattern.finditer(ret.stdout.decode("utf-8"))
     return [m.group(1) for m in matches]
 
