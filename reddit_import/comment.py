@@ -2,13 +2,11 @@
 Representation of a Reddit comment.
 """
 from datetime import datetime
-import dataclasses
 from reddit_import.schema import SchemaMixin
 from reddit_import.spoiler import Spoiler
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, DateType
 
 
-@dataclasses.dataclass
 class Comment(SchemaMixin):
     schema = StructType([
         StructField("id", IntegerType(), nullable=False),
@@ -48,6 +46,17 @@ class Comment(SchemaMixin):
         self.parent_comment_id = parent_comment_id
         if contains_spoiler is None:
             self.contains_spoiler = len(self.spoilers()) > 0
+        else:
+            self.contains_spoiler = contains_spoiler
+
+    def __eq__(self, other):
+        if isinstance(other, Comment):
+            return all(
+                self.__getattribute__(field.name) == other.__getattribute__(field.name)
+                for field in self.schema
+            )
+        else:
+            return NotImplemented
 
     @staticmethod
     def from_raw(raw):
