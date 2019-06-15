@@ -1,5 +1,3 @@
-import dataclasses
-from collections import OrderedDict
 from pyspark.sql import Row
 from pyspark.sql.types import StructType, StringType, IntegerType, BooleanType, DateType
 from datetime import datetime
@@ -15,14 +13,11 @@ def get_pyspark_type(type):
 
 
 class SchemaMixin:
-    """Mixin for dataclasses to allow returning a Spark SQL schema and row."""
+    """Mixin for to allow returning a Spark SQL row."""
 
     @classmethod
-    def schema(cls):
-        elements = OrderedDict()
-        for field in dataclasses.fields(cls):
-            elements[field.name] = get_pyspark_type(field.type)
-        return elements
+    def from_row(cls, row):
+        return cls(**row.asDict())
 
     def to_row(self):
-        return Row(**dataclasses.asdict(self))
+        return Row(**{field.name: self.__getattribute__(field.name) for field in self.schema})
