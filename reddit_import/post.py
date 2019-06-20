@@ -35,7 +35,7 @@ class Post(SchemaMixin):
         permalink,
         score,
         spoiler,
-        subreddit,
+        subreddit_id,
     ):
         self.id = id
         self.title = title
@@ -48,7 +48,7 @@ class Post(SchemaMixin):
         self.permalink = permalink
         self.score = score
         self.spoiler = spoiler
-        self.subreddit = subreddit
+        self.subreddit_id = subreddit_id
 
     @staticmethod
     def from_raw(raw):

@@ -62,6 +62,8 @@ class Comment(SchemaMixin):
     def from_raw(raw):
         if raw["link_id"] != raw["parent_id"]:
             parent_comment_id = int(raw["parent_id"].split("_")[-1], 36)
+        else:
+            parent_comment_id = None
         comment = Comment(
             id=int(str(raw["id"]).split("_")[-1], 36),
             author=raw["author"],
