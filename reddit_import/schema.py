@@ -20,4 +20,4 @@ class SchemaMixin:
         return cls(**row.asDict())
 
     def to_row(self):
-        return Row(**{field.name: self.__getattribute__(field.name) for field in self.schema})
+        return {field.name: self.__getattribute__(field.name) for field in self.schema}

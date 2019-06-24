@@ -5,21 +5,24 @@ from datetime import datetime
 import json
 from reddit_import.schema import SchemaMixin
 from reddit_import.spoiler import Spoiler
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, DateType
+from html import unescape
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, TimestampType, LongType
 
 
 class Comment(SchemaMixin):
     schema = StructType([
-        StructField("id", IntegerType(), nullable=False),
+        StructField("id", LongType(), nullable=False),
         StructField("author", StringType(), nullable=False),
         StructField("text", StringType(), nullable=False),
-        StructField("gilded", BooleanType(), nullable=False),
-        StructField("created", DateType(), nullable=False),
+        StructField("gilded", IntegerType(), nullable=False),
+        StructField("created", TimestampType(), nullable=False),
         StructField("permalink", StringType(), nullable=True),
         StructField("score", IntegerType(), nullable=False),
-        StructField("post_id", IntegerType(), nullable=False),
+        StructField("post_id", LongType(), nullable=False),
         StructField("contains_spoiler", BooleanType(), nullable=False),
-        StructField("parent_comment_id", IntegerType(), nullable=True),
+        StructField("parent_comment_id", LongType(), nullable=True),
+        StructField("subreddit", StringType(), nullable=False),
+        StructField("subreddit_id", LongType(), nullable=False),
     ])
 
 
@@ -33,6 +36,8 @@ class Comment(SchemaMixin):
             permalink,
             score,
             post_id,
+            subreddit,
+            subreddit_id,
             contains_spoiler=None,
             parent_comment_id=None,
     ):
@@ -49,6 +54,8 @@ class Comment(SchemaMixin):
             self.contains_spoiler = len(self.spoilers()) > 0
         else:
             self.contains_spoiler = contains_spoiler
+        self.subreddit = subreddit
+        self.subreddit_id = subreddit_id
 
     def __eq__(self, other):
         if isinstance(other, Comment):
@@ -68,13 +75,15 @@ class Comment(SchemaMixin):
         comment = Comment(
             id=int(str(raw["id"]).split("_")[-1], 36),
             author=raw["author"],
-            text=raw["body"],
+            text=unescape(raw["body"].replace("\u0000", "")),
             gilded=raw["gilded"],
             created=datetime.fromtimestamp(int(raw["created_utc"])),
             permalink=raw.get("permalink"),
             score=raw["score"],
             post_id=int(raw["link_id"].split("_")[-1], 36),
             parent_comment_id=parent_comment_id,
+            subreddit=raw["subreddit"],
+            subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36),
         )
         return comment
 
@@ -82,9 +91,9 @@ class Comment(SchemaMixin):
         return Spoiler.all_from_text(self.text)
 
     @staticmethod
-    def load_comments(session):
+    def load_comments(session, path="reddit/comments"):
         sc = session.sparkContext
-        comments = sc.textFile("reddit/comments")
+        comments = sc.textFile(path)
         parsed = comments.map(lambda line: Comment.from_raw(json.loads(line)))
         rows = parsed.map(lambda comment: comment.to_row())
         return session.createDataFrame(rows, Comment.schema)
