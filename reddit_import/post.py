@@ -2,6 +2,7 @@
 Representation of a Reddit post
 """
 from datetime import datetime
+import json
 from reddit_import.schema import SchemaMixin
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, DateType
 
@@ -67,3 +68,11 @@ class Post(SchemaMixin):
             subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36),
         )
         return post
+
+    @staticmethod
+    def load_posts(session):
+        sc = session.sparkContext
+        posts = sc.textFile("reddit/submissions")
+        parsed = posts.map(lambda line: Post.from_raw(json.loads(line)))
+        rows = parsed.map(lambda post: post.to_row())
+        return session.createDataFrame(rows, Post.schema)

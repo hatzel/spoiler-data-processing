@@ -2,6 +2,7 @@
 Representation of a Reddit comment.
 """
 from datetime import datetime
+import json
 from reddit_import.schema import SchemaMixin
 from reddit_import.spoiler import Spoiler
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, DateType
@@ -79,3 +80,15 @@ class Comment(SchemaMixin):
 
     def spoilers(self):
         return Spoiler.all_from_text(self.text)
+
+    @staticmethod
+    def load_comments(session):
+        sc = session.sparkContext
+        comments = sc.textFile("reddit/comments")
+        parsed = comments.map(lambda line: Comment.from_raw(json.loads(line)))
+        rows = parsed.map(lambda comment: comment.to_row())
+        return session.createDataFrame(rows, Comment.schema)
+
+    @staticmethod
+    def extract_spoilers(df):
+        return df.filter(df.contains_spoiler == True)
