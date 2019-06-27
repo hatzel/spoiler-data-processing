@@ -4,7 +4,6 @@ Representation of a Reddit post
 from datetime import datetime
 import json
 from reddit_import.schema import SchemaMixin
-from html import unescape
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, TimestampType, LongType
 
 
@@ -59,13 +58,13 @@ class Post(SchemaMixin):
     def from_raw(raw):
         post = Post(
             id=int(raw["id"], 36),
-            title=unescape(raw["title"]),
+            title=raw["title"],
             url=raw["url"],
-            selftext=unescape(raw.get("selftext").replace("\u0000", "")),
+            selftext=raw.get("selftext").replace("\u0000", ""),
             author=raw.get("author"),
             created=datetime.fromtimestamp(int(raw["created_utc"])),
             gilded=raw.get("gilded", 0),
-            flair_text=unescape(raw.get("link_flair_text")),
+            flair_text=raw.get("link_flair_text"),
             permalink=raw["permalink"],
             score=raw.get("score", 0),
             spoiler=raw.get("spoiler", False),

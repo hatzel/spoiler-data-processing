@@ -3,29 +3,53 @@ from reddit_import import Comment, Post
 import json
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import desc
+
+SUBREDDIT_WHITELIST = [
+    "asoiaf",
+    "gameofthrones",
+    # this is just for testing
+    "AdviceAnimals"
+]
 
 
 def main():
-    session = build_session()
+    session = build_session(name="Reddit Subreddit Counts")
     sc = session.sparkContext
     comments = Comment.load_comments(session)
-    filtered_comments = comments.filter(comments.contains_spoiler == False)\
-        .filter(comments.author != "AutoModerator")\
-        .persist()
-    posts = Post.load_posts(session)
-    posts = posts.persist()
-    spoiler_comments_without_spoiler_posts = filtered_comments.join(posts, filtered_comments.post_id == posts.id)
+    comment_spoilers_per_subreddit(session, comments)
+    # filtered_comments = comments.filter(comments.contains_spoiler == False)\
+    #     .filter(comments.author != "AutoModerator")\
+    #     .filter(" or ".join(["subreddit == '%s'" % s for s in SUBREDDIT_WHITELIST]))\
+    #     .persist()
+    # posts = Post.load_posts(session, path="examples/submissions.txt")
+    # # print(posts.take(5))
+    # posts = posts.persist()
+    # # posts.join()
+    # spoiler_comments_without_spoiler_posts = filtered_comments.join(posts, filtered_comments.post_id == posts.id)
+    # print(spoiler_comments_without_spoiler_posts.collect())
 
 
-def build_context():
+def comment_spoilers_per_subreddit(session, comments):
+    spoiler_comments = comments.filter(comments.contains_spoiler == True)
+    spoiler_counts_per_subreddit = spoiler_comments.groupby("subreddit")\
+        .count()\
+        .sort(desc("count"))
+    spoiler_counts_per_subreddit.write.csv(
+        "reddit/spoilers_per_subreddit-%s.csv" % session.sparkContext.applicationId
+    )
+
+
+
+def build_context(name="Reddit Spoilers"):
     conf = SparkConf()
-    conf.setAppName("Reddit Spoilers")
+    conf.setAppName(name)
     sc = SparkContext(conf=conf)
     return sc
 
 
-def build_session():
-    return  SparkSession.builder.appName("Reddit-Spoilers").getOrCreate()
+def build_session(name="Reddit-Spoilers"):
+    return  SparkSession.builder.appName(name).getOrCreate()
 
 
 if __name__ == "__main__":

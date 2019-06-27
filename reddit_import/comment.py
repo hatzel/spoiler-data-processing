@@ -5,7 +5,6 @@ from datetime import datetime
 import json
 from reddit_import.schema import SchemaMixin
 from reddit_import.spoiler import Spoiler
-from html import unescape
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, BooleanType, TimestampType, LongType
 
 
@@ -75,7 +74,7 @@ class Comment(SchemaMixin):
         comment = Comment(
             id=int(str(raw["id"]).split("_")[-1], 36),
             author=raw["author"],
-            text=unescape(raw["body"].replace("\u0000", "")),
+            text=raw["body"].replace("\u0000", ""),
             gilded=raw["gilded"],
             created=datetime.fromtimestamp(int(raw["created_utc"])),
             permalink=raw.get("permalink"),
@@ -88,7 +87,12 @@ class Comment(SchemaMixin):
         return comment
 
     def spoilers(self):
-        return Spoiler.all_from_text(self.text)
+        try:
+            return Spoiler.all_from_text(self.text)
+        except TypeError as e:
+            print("Error parsing spoiler", e)
+            print("With text", self.text)
+            raise e
 
     @staticmethod
     def load_comments(session, path="reddit/comments"):
