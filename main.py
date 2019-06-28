@@ -3,7 +3,7 @@ from reddit_import import Comment, Post
 import json
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import desc
+from pyspark.sql.functions import desc, date_trunc
 
 SUBREDDIT_WHITELIST = [
     "asoiaf",
@@ -12,12 +12,13 @@ SUBREDDIT_WHITELIST = [
     "AdviceAnimals"
 ]
 
-
 def main():
     session = build_session(name="Reddit Subreddit Counts")
     sc = session.sparkContext
     comments = Comment.load_comments(session)
-    comment_spoilers_per_subreddit(session, comments)
+    spoiler_comments = comments.filter(comments.contains_spoiler == True).persist()
+    comment_spoilers_per_subreddit(session, spoiler_comments)
+    comment_spoilers_per_month(session, spoiler_comments)
     # filtered_comments = comments.filter(comments.contains_spoiler == False)\
     #     .filter(comments.author != "AutoModerator")\
     #     .filter(" or ".join(["subreddit == '%s'" % s for s in SUBREDDIT_WHITELIST]))\
@@ -30,8 +31,17 @@ def main():
     # print(spoiler_comments_without_spoiler_posts.collect())
 
 
-def comment_spoilers_per_subreddit(session, comments):
-    spoiler_comments = comments.filter(comments.contains_spoiler == True)
+def comment_spoilers_per_month(session, spoiler_comments):
+    spoiler_counts_per_subreddit = spoiler_comments\
+        .select(date_trunc("month", spoiler_comments.created).alias("month"))\
+        .groupby("month")\
+        .count()
+    spoiler_counts_per_subreddit.write.csv(
+        "reddit/spoilers_per_month-%s.csv" % session.sparkContext.applicationId
+    )
+
+
+def comment_spoilers_per_subreddit(session, spoiler_comments):
     spoiler_counts_per_subreddit = spoiler_comments.groupby("subreddit")\
         .count()\
         .sort(desc("count"))
