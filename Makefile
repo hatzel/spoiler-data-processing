@@ -1,8 +1,8 @@
 APP_NAME=reddit-spoilers
-NUM_EXECUTORS=4
-EXECUTOR_MEMORY=32g
+NUM_EXECUTORS=16
+EXECUTOR_MEMORY=20g
 DRIVER_MEMORY=4g
-EXECUTOR_CORES=6
+EXECUTOR_CORES=16
 PY_FILES:=$(wildcard *.py)
 EGGS:=$(wildcard bin/*.egg) $(wildcard dist/*.egg)
 
