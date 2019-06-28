@@ -17,6 +17,7 @@ EGGS:= $(subst $(space),$(comma),$(strip $(EGGS)))
 BASE_COMMAND = spark-submit \
 			   --name "reddit-spoilers" \
 			   --py-files $(PY_FILES),$(EGGS) \
+			   --files subreddit_whitelist.txt \
 			   --num-executors $(NUM_EXECUTORS) \
 			   --driver-memory $(DRIVER_MEMORY) \
 			   --executor-memory $(EXECUTOR_MEMORY) \
