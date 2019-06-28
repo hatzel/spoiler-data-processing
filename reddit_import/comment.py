@@ -78,7 +78,7 @@ class Comment(SchemaMixin):
             gilded=raw["gilded"],
             created=datetime.fromtimestamp(int(raw["created_utc"])),
             permalink=raw.get("permalink"),
-            score=raw["score"],
+            score=int(raw.get("score") or 0),
             post_id=int(raw["link_id"].split("_")[-1], 36),
             parent_comment_id=parent_comment_id,
             subreddit=raw["subreddit"],
