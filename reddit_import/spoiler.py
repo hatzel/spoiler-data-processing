@@ -34,6 +34,13 @@ class Spoiler():
         cls.renderer.stripTopLevelTags = False
         cls.renderer.postprocessors = []
         spoilers = []
-        for element in cls.renderer.convert(text):
-            spoilers.append(Spoiler(element.text, element.get("topic")))
+        try:
+            for element in cls.renderer.convert(text):
+                spoilers.append(Spoiler(element.text, element.get("topic")))
+        except RecursionError as e:
+            print("[Warning] Reached recursion depth while parsing comment, treating as non-spoiler.", e)
+            print("[Warning] Offending comment was:", text)
+        except Exception as e:
+            print("[Warning] Error while parsing comment, treating as non-spoiler.", e)
+            print("[Warning] Offending comment was:", text)
         return spoilers
