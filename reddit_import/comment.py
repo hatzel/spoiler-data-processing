@@ -96,9 +96,9 @@ class Comment(SchemaMixin):
 
     @staticmethod
     def load_comments(session, path="reddit/comments"):
-        def load_json(string):
+        def load_from_json(string):
             try:
-                return [json.loads(string)]
+                return [Comment.from_raw(json.loads(string))]
             except json.decoder.JSONDecodeError as err:
                 print("[Warning] unable to parse comment:", string)
                 print("[Warning]", err)
@@ -110,7 +110,7 @@ class Comment(SchemaMixin):
         sc = session.sparkContext
         comments = sc.textFile(path)
         parsed = comments.flatMap(
-            lambda line: [Comment.from_raw(raw) for raw in load_json(line)]
+            lambda line: load_from_json(line)
         )
         rows = parsed.map(lambda comment: comment.to_row())
         return session.createDataFrame(rows, Comment.schema)

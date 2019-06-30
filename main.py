@@ -66,14 +66,12 @@ def main(args):
                     .persist(StorageLevel.MEMORY_AND_DISK)
             non_spoiler_count = subreddit_non_spoilers.count()
             # Due to this sampling we are not guaranteed to get the exact same counts
-            if spoiler_count < non_spoiler_count:
+            if spoiler_count > non_spoiler_count:
                 print(
-                    "[Warning] We will not be able to sample enough non-spoilers for %s (spoilers: %d, non-spoilers: %d)",
-                    subreddit,
-                    spoiler_count,
-                    non_spoiler_count,
+                    "[Warning] We will not be able to sample enough non-spoilers for %s (spoilers: %d, non-spoilers: %d)" %
+                    (subreddit, spoiler_count, non_spoiler_count)
                 )
-                fraction = 1
+                fraction = 1.0
             else:
                 fraction = spoiler_count / non_spoiler_count
             sampled = subreddit_non_spoilers.sample(fraction=fraction, seed=42)

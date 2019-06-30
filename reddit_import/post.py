@@ -20,8 +20,8 @@ class Post(SchemaMixin):
         StructField("permalink", StringType(), nullable=False),
         StructField("score", LongType(), nullable=False),
         StructField("spoiler", BooleanType(), nullable=False),
-        StructField("subreddit", StringType(), nullable=False),
-        StructField("subreddit_id", LongType(), nullable=False),
+        StructField("subreddit", StringType(), nullable=True),
+        StructField("subreddit_id", LongType(), nullable=True),
     ])
 
     def __init__(
@@ -68,16 +68,27 @@ class Post(SchemaMixin):
             permalink=raw["permalink"],
             score=raw.get("score") or 0,
             spoiler=raw.get("spoiler", False),
-            subreddit=raw["subreddit"],
-            subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36),
+            subreddit=raw.get("subreddit"),
+            subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36) if raw.get("subreddit_id") else None
         )
         return post
 
     @staticmethod
     def load_posts(session, path="reddit/submissions"):
+        def load_from_json(string):
+            try:
+                return [Post.from_raw(json.loads(string))]
+            except json.decoder.JSONDecodeError as err:
+                print("[Warning] unable to parse post:", string)
+                print("[Warning]", err)
+                return []
+            except Exception as err:
+                print("[Warning] unknown error parsing post:", string)
+                print("[Warning]", err)
+                return []
         sc = session.sparkContext
         posts = sc.textFile(path)
         _ = posts.map(lambda line: line)
-        parsed = posts.map(lambda line: Post.from_raw(json.loads(line)))
+        parsed = posts.flatMap(lambda line: load_from_json(line))
         rows = parsed.map(lambda post: post.to_row())
         return session.createDataFrame(rows, Post.schema)
