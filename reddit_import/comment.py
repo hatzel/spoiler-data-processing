@@ -86,6 +86,27 @@ class Comment(SchemaMixin):
         )
         return comment
 
+    @staticmethod
+    def from_serialized(data):
+        """Convert serialized json reperesentation back to comment."""
+        return Comment(
+            data["id"],
+            data["author"],
+            data["text"],
+            data["gilded"],
+            data["created"],
+            data.get("permalink"),
+            data["score"],
+            data["post_id"],
+            data["subreddit"],
+            data["subreddit_id"],
+            contains_spoiler=data.get("contains_spoiler", None),
+            parent_comment_id=data.get("parent_comment_id", None),
+        )
+
+    def get_text(self, mode="raw"):
+        return self.text
+
     def spoilers(self):
         try:
             return Spoiler.all_from_text(self.text)
