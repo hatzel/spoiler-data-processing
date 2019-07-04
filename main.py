@@ -1,8 +1,7 @@
 import reddit_import
-from reddit_import import Comment, Post
+from reddit_import import Comment, Post, util
 import json
-from pyspark import SparkConf, SparkContext, StorageLevel
-from pyspark.sql import DataFrame, SparkSession
+from pyspark import StorageLevel
 from pyspark.sql.functions import desc, date_trunc
 import argparse
 from datetime import datetime
@@ -28,8 +27,7 @@ def validate_date(date_string):
         )
 
 def main(args):
-    session = build_session(name="Reddit Subreddit Counts")
-    sc = session.sparkContext
+    session = util.build_session(name="Reddit Subreddit Counts")
     comments = Comment.load_comments(session, path=args.comments_path).persist(StorageLevel.DISK_ONLY)
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -63,7 +61,9 @@ def main(args):
         spoiler_counts_per_sub = {row["subreddit"]: row["count"] for row in spoiler_counts_per_sub}
         print(spoiler_counts_per_sub)
 
-        non_spoiler_comments = comments.filter(comments.contains_spoiler == False).persist(StorageLevel.DISK_ONLY)
+        non_spoiler_comments = comments\
+                .filter(comments.contains_spoiler == False)\
+                .persist(StorageLevel.DISK_ONLY)
         for subreddit, spoiler_count in spoiler_counts_per_sub.items():
             subreddit_non_spoilers = non_spoiler_comments.filter(comments.author != "AutoModerator")\
                     .filter(non_spoiler_comments.subreddit == subreddit)\
@@ -109,17 +109,6 @@ def comment_spoilers_per_subreddit(session, spoiler_comments, month=None):
         "reddit/spoilers_per_subreddit-%s.csv" % session.sparkContext.applicationId
     )
     return spoiler_counts_per_subreddit
-
-
-def build_context(name="Reddit Spoilers"):
-    conf = SparkConf()
-    conf.setAppName(name)
-    sc = SparkContext(conf=conf)
-    return sc
-
-
-def build_session(name="Reddit-Spoilers"):
-    return  SparkSession.builder.appName(name).getOrCreate()
 
 
 if __name__ == "__main__":
