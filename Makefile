@@ -26,8 +26,14 @@ BASE_COMMAND = spark-submit \
 local: package
 	$(BASE_COMMAND) main.py $(OPTIONS)
 
+local-merge: package
+	$(BASE_COMMAND) results-processor.py $(OPTIONS)
+
 submit: package
 	$(BASE_COMMAND) --master yarn --deploy-mode cluster --num-executors $(NUM_EXECUTORS) --executor-cores $(EXECUTOR_CORES) main.py $(OPTIONS)
+
+submit-merge: package
+	$(BASE_COMMAND) --master yarn --deploy-mode cluster --num-executors $(NUM_EXECUTORS) --executor-cores $(EXECUTOR_CORES) results-processor.py $(OPTIONS)
 
 package:
 	python setup.py bdist_egg
