@@ -67,7 +67,7 @@ class Post(SchemaMixin):
             flair_text=raw.get("link_flair_text"),
             permalink=raw["permalink"],
             score=raw.get("score") or 0,
-            spoiler=raw.get("spoiler", False),
+            spoiler=raw.get("spoiler", False) or False,
             subreddit=raw.get("subreddit"),
             subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36) if raw.get("subreddit_id") else None
         )
