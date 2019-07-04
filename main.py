@@ -5,24 +5,27 @@ from pyspark import SparkConf, SparkContext, StorageLevel
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import desc, date_trunc
 import argparse
+from datetime import datetime
 
-SUBREDDIT_WHITELIST = [
-    "asoiaf",
-    "gameofthrones",
-    # this is just for testing
-    "AdviceAnimals"
-]
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Reddit Spoiler Processing")
     parser.add_argument("collect", nargs="+", choices=["statistics", "spoiler_comments", "non_spoiler_comments"])
     parser.add_argument("--posts-path", help="Path to submissions.", default="reddit/submissions")
     parser.add_argument("--comments-path", help="Path to posts.", default="reddit/comments")
-    parser.add_argument("--whitelist", nargs="+",
+    parser.add_argument("--month", help="Show comment spoilers in a specific month (only affects subreddit stasitics) YYYY-MM.", type=validate_date)
+    parser.add_argument("--whitelist", nargs="?",
                         type=argparse.FileType("r"),
                         default="subreddit_whitelist.txt")
     return parser
 
+def validate_date(date_string):
+    try:
+        return datetime.strptime(date_string, "%Y-%m")
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Not a valid date: %s" % date_string
+        )
 
 def main(args):
     session = build_session(name="Reddit Subreddit Counts")
@@ -31,7 +34,10 @@ def main(args):
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
 
     posts = Post.load_posts(session, path=args.posts_path).persist(StorageLevel.DISK_ONLY)
-    non_spoiler_post_ids = posts.filter(posts.spoiler == False).select("id").persist(StorageLevel.DISK_ONLY)
+    non_spoiler_post_ids = posts.filter(posts.spoiler == False)\
+        .filter(~(posts.title.contains("Spoiler") | posts.title.contains("spoiler")))\
+        .select("id")\
+        .persist(StorageLevel.DISK_ONLY)
 
     whitelist = [line.strip() for line in args.whitelist.readlines()]
     whitelisted_spoiler_comments = spoiler_comments\
@@ -40,7 +46,7 @@ def main(args):
         .persist(StorageLevel.MEMORY_AND_DISK)
 
     if "statistics" in args.collect:
-        comment_spoilers_per_subreddit(session, spoiler_comments)
+        comment_spoilers_per_subreddit(session, spoiler_comments, args.month)
         comment_spoilers_per_month(session, spoiler_comments)
     if "spoiler_comments" in args.collect:
         if len(whitelist) == 0:
@@ -90,7 +96,12 @@ def comment_spoilers_per_month(session, spoiler_comments):
     )
 
 
-def comment_spoilers_per_subreddit(session, spoiler_comments):
+def comment_spoilers_per_subreddit(session, spoiler_comments, month=None):
+    if month:
+        comments_with_month = spoiler_comments\
+            .withColumn("month", date_trunc("month", spoiler_comments.created))
+        spoiler_comments = comments_with_month\
+            .filter(comments_with_month.month == month)
     spoiler_counts_per_subreddit = spoiler_comments.groupby("subreddit")\
         .count()\
         .sort(desc("count"))
