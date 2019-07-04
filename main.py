@@ -18,6 +18,7 @@ def build_parser():
                         default="subreddit_whitelist.txt")
     return parser
 
+
 def validate_date(date_string):
     try:
         return datetime.strptime(date_string, "%Y-%m")
@@ -25,6 +26,7 @@ def validate_date(date_string):
         raise argparse.ArgumentTypeError(
             "Not a valid date: %s" % date_string
         )
+
 
 def main(args):
     session = util.build_session(name="Reddit Subreddit Counts")
