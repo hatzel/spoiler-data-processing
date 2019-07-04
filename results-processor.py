@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Result Transformation")
-    parser.add_argument("text-mode", nargs="?", choices=["html", "plain", "raw"],
+    parser.add_argument("--text-mode", nargs="?", choices=["html", "plain", "raw"],
                         help="Output mode of text", default="raw")
     # parser.add_argument("label-scale", nargs=1, choices=["document", "token"],
     #                     help="Class labels on token or document level.", default="document")
@@ -24,9 +24,9 @@ def main(args):
     comments = None
     for name in args.comments:
         if comments is None:
-            comments = pyspark.read.json(name)
+            comments = session.read.json(name)
         else:
-            comments.unionAll(pyspark.read.json(name))
+            comments = comments.unionAll(session.read.json(name))
     renderer = markdown.Markdown(
         extensions=["spoilers"]
     )
