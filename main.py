@@ -34,12 +34,15 @@ def main(args):
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
 
     posts = Post.load_posts(session, path=args.posts_path).persist(StorageLevel.DISK_ONLY)
+    whitelist = [line.strip() for line in args.whitelist.readlines()]
+
     non_spoiler_post_ids = posts.filter(posts.spoiler == False)\
+        .filter(posts.over_18 == False)\
         .filter(~(posts.title.contains("Spoiler") | posts.title.contains("spoiler")))\
+        .filter(" or ".join(["subreddit == '%s'" % s for s in whitelist]))\
         .select("id")\
         .persist(StorageLevel.DISK_ONLY)
 
-    whitelist = [line.strip() for line in args.whitelist.readlines()]
     whitelisted_spoiler_comments = spoiler_comments\
         .filter(comments.author != "AutoModerator")\
         .filter(" or ".join(["subreddit == '%s'" % s for s in whitelist]))\
@@ -64,13 +67,18 @@ def main(args):
         print(spoiler_counts_per_sub)
 
         non_spoiler_comments = comments\
-                .filter(comments.contains_spoiler == False)\
-                .persist(StorageLevel.DISK_ONLY)
+            .filter(comments.distinguished.isNull())\
+            .filter(comments.score >= 3)\
+            .filter(comments.author != "AutoModerator")\
+            .filter(comments.contains_spoiler == False)\
+            .filter(" or ".join(["subreddit == '%s'" % s for s in whitelist]))\
+            .join(non_spoiler_post_ids, comments.post_id == non_spoiler_post_ids.id)\
+            .drop(non_spoiler_post_ids.id)\
+            .persist(StorageLevel.DISK_ONLY)
+
         for subreddit, spoiler_count in spoiler_counts_per_sub.items():
-            subreddit_non_spoilers = non_spoiler_comments.filter(comments.author != "AutoModerator")\
+            subreddit_non_spoilers = non_spoiler_comments\
                     .filter(non_spoiler_comments.subreddit == subreddit)\
-                    .join(non_spoiler_post_ids, non_spoiler_comments.post_id == non_spoiler_post_ids.id)\
-                    .drop(non_spoiler_post_ids.id)\
                     .persist(StorageLevel.MEMORY_AND_DISK)
             non_spoiler_count = subreddit_non_spoilers.count()
             # Due to this sampling we are not guaranteed to get the exact same counts
