@@ -19,6 +19,7 @@ class Post(SchemaMixin):
         StructField("flair_text", StringType(), nullable=True),
         StructField("permalink", StringType(), nullable=False),
         StructField("score", LongType(), nullable=False),
+        StructField("over_18", BooleanType(), nullable=False),
         StructField("spoiler", BooleanType(), nullable=False),
         StructField("subreddit", StringType(), nullable=True),
         StructField("subreddit_id", LongType(), nullable=True),
@@ -36,6 +37,7 @@ class Post(SchemaMixin):
         flair_text,
         permalink,
         score,
+        over_18,
         spoiler,
         subreddit,
         subreddit_id,
@@ -50,6 +52,7 @@ class Post(SchemaMixin):
         self.flair_text = flair_text
         self.permalink = permalink
         self.score = score
+        self.over_18 = over_18
         self.spoiler = spoiler
         self.subreddit = subreddit
         self.subreddit_id = subreddit_id
@@ -67,6 +70,7 @@ class Post(SchemaMixin):
             flair_text=raw.get("link_flair_text"),
             permalink=raw["permalink"],
             score=raw.get("score") or 0,
+            over_18=raw.get("over_18", False) or False,
             spoiler=raw.get("spoiler", False) or False,
             subreddit=raw.get("subreddit"),
             subreddit_id=int(raw["subreddit_id"].split("_")[-1], 36) if raw.get("subreddit_id") else None

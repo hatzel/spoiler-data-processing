@@ -12,6 +12,7 @@ class Comment(SchemaMixin):
     schema = StructType([
         StructField("id", LongType(), nullable=False),
         StructField("author", StringType(), nullable=False),
+        StructField("distinguished", StringType(), nullable=True),
         StructField("text", StringType(), nullable=False),
         StructField("gilded", IntegerType(), nullable=False),
         StructField("created", TimestampType(), nullable=False),
@@ -29,6 +30,7 @@ class Comment(SchemaMixin):
             self,
             id,
             author,
+            distinguished,
             text,
             gilded,
             created,
@@ -42,6 +44,7 @@ class Comment(SchemaMixin):
     ):
         self.id = id
         self.author = author
+        self.distinguished = distinguished
         self.text = text
         self.gilded = gilded
         self.created = created
@@ -74,6 +77,7 @@ class Comment(SchemaMixin):
         comment = Comment(
             id=int(str(raw["id"]).split("_")[-1], 36),
             author=raw["author"],
+            distinguished=raw.get("distinguished"),
             text=raw["body"].replace("\u0000", ""),
             gilded=raw["gilded"],
             created=datetime.fromtimestamp(int(raw["created_utc"])),
@@ -92,6 +96,7 @@ class Comment(SchemaMixin):
         return Comment(
             data["id"],
             data["author"],
+            data["distinguished"],
             data["text"],
             data["gilded"],
             data["created"],
