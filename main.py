@@ -49,7 +49,7 @@ def main(args):
         .persist(StorageLevel.MEMORY_AND_DISK)
 
     if "statistics" in args.collect:
-        comment_spoilers_per_subreddit(session, spoiler_comments, args.month)
+        comment_spoilers_per_month_and_sub(session, spoiler_comments)
         comment_spoilers_per_month(session, spoiler_comments)
     if "spoiler_comments" in args.collect:
         if len(whitelist) == 0:
@@ -104,6 +104,44 @@ def comment_spoilers_per_month(session, spoiler_comments):
     spoiler_counts_per_subreddit.write.csv(
         "reddit/spoilers_per_month-%s.csv" % session.sparkContext.applicationId
     )
+
+
+def comment_spoilers_per_month_and_sub(session, spoiler_comments):
+    spoiler_counts = spoiler_comments\
+        .select(date_trunc("month", spoiler_comments.created).alias("month"), "subreddit")\
+        .groupby("month", "subreddit")\
+        .count()\
+        .rdd\
+        .groupBy(lambda row: row["month"])\
+        .cache()
+    top_subs = spoiler_counts\
+        .mapValues(sorted)\
+        .map(lambda pair: pair[1][:5])\
+        .flatMap(lambda rows: [row["subreddit"] for row in rows])\
+        .distinct()\
+        .collect()
+    top_sub_counts = spoiler_counts\
+        .map(lambda pair: [pair[0]] + subreddit_counts(top_subs, pair[1]))
+    header = session.sparkContext.parallelize([["month"] + top_subs + ["others"]])
+    header.map(lambda row: ",".join(row)).saveAsTextFile(
+        "reddit/spoilers_per_month_and_sub_header-%s.csv" % session.sparkContext.applicationId
+    )
+    top_sub_counts.map(lambda row: ",".join(str(el) for el in row)).saveAsTextFile(
+        "reddit/spoilers_per_month_and_sub-%s.csv" % session.sparkContext.applicationId
+    )
+    spoiler_counts.unpersist()
+
+
+def subreddit_counts(subreddits, rows):
+    counts = {row["subreddit"]: row["count"] for row in rows}
+    out_counts = []
+    for sub in subreddits:
+        out_counts.append(counts.get(sub, 0))
+        if counts.get(sub) is not None:
+            del counts[sub]
+    # sum of 'others'
+    out_counts.append(sum(counts.values()))
+    return out_counts
 
 
 def comment_spoilers_per_subreddit(session, spoiler_comments, month=None):
