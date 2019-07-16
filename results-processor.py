@@ -46,8 +46,8 @@ def main(args):
     output = session.createDataFrame(parsed_comments, ["text", "spoiler"]).cache()
     split_data = output.randomSplit([value for _, value in SPLITS], seed=1)
     for i, (split, _) in enumerate(SPLITS):
-        split_data[i].write.csv(
-            "reddit/%s-%s-%s.csv"
+        split_data[i].write.json(
+            "reddit/%s-%s-%s.json"
             % (split, args.text_mode, session.sparkContext.applicationId)
         )
 
