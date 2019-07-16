@@ -9,7 +9,6 @@ asoiaf
 fireemblem
 manga
 danganronpa
-DotA2
 gameofthrones
 Fantasy
 reddeadredemption
