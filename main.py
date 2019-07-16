@@ -50,7 +50,8 @@ def main(args):
 
     if "statistics" in args.collect:
         comment_spoilers_per_month_and_sub(session, spoiler_comments)
-        comment_spoilers_per_month(session, spoiler_comments)
+        save_comment_per_month(session, spoiler_comments, base_name="spoilers_comments_per_month")
+        save_comment_per_month(session, comments, base_name="total_comments-per_month")
     if "spoiler_comments" in args.collect:
         if len(whitelist) == 0:
             print("Error, whitelist has 0 elements")
@@ -96,13 +97,13 @@ def main(args):
             subreddit_non_spoilers.unpersist()
 
 
-def comment_spoilers_per_month(session, spoiler_comments):
-    spoiler_counts_per_subreddit = spoiler_comments\
-        .select(date_trunc("month", spoiler_comments.created).alias("month"))\
+def save_comment_per_month(session, comments, base_name):
+    counts_per_month = comments\
+        .select(date_trunc("month", comments.created).alias("month"))\
         .groupby("month")\
         .count()
-    spoiler_counts_per_subreddit.write.csv(
-        "reddit/spoilers_per_month-%s.csv" % session.sparkContext.applicationId
+    counts_per_month.write.csv(
+        "reddit/%s-%s.csv" % (base_name, session.sparkContext.applicationId)
     )
 
 
