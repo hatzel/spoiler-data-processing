@@ -118,7 +118,7 @@ def comment_spoilers_per_month_and_sub(session, spoiler_comments):
         .groupBy(lambda row: row["month"])\
         .cache()
     top_subs = spoiler_counts\
-        .mapValues(lambda values: sorted(values, key=lambda row: row["count"]))\
+        .mapValues(lambda values: sorted(values, key=lambda row: row["count"], reverse=True))\
         .map(lambda pair: pair[1][:5])\
         .flatMap(lambda rows: [row["subreddit"] for row in rows])\
         .distinct()\
