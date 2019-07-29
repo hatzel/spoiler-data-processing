@@ -108,7 +108,6 @@ roosterteeth
 SwordOrSheath
 Borderlands
 Kaguya_sama
-alttpr
 criticalrole
 GrandTheftAutoV
 whowouldwin
@@ -116,7 +115,6 @@ WebGames
 40kLore
 HPMOR
 Gundam
-JapaneseInTheWild
 Pathfinder_RPG
 survivor
 Diablo
