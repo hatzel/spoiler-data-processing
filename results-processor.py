@@ -52,14 +52,15 @@ def main(args):
     renderer = markdown.Markdown(
         extensions=["spoilers"]
     )
-    parsed_comments = comments.select("text", "contains_spoiler")\
+    parsed_comments = comments.select("text", "contains_spoiler", "permalink")\
         .orderBy(rand())\
         .rdd\
         .map(lambda row: (
             convert_text(row["text"], args.text_mode, args.classify, renderer),
             row["contains_spoiler"],
+            row["permalink"],
         ))
-    output = session.createDataFrame(parsed_comments, ["text", "spoiler"]).cache()
+    output = session.createDataFrame(parsed_comments, ["text", "spoiler", "permalink"]).cache()
     split_data = output.randomSplit([value for _, value in SPLITS], seed=1)
     for i, (split, _) in enumerate(SPLITS):
         split_data[i].write.json(
