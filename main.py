@@ -2,7 +2,7 @@ import reddit_import
 from reddit_import import Comment, Post, util
 import json
 from pyspark import StorageLevel
-from pyspark.sql.functions import desc, date_trunc
+from pyspark.sql.functions import desc, date_trunc, col
 import argparse
 from datetime import datetime
 
@@ -30,9 +30,13 @@ def validate_date(date_string):
 
 def main(args):
     session = util.build_session(name="Reddit Subreddit Counts")
-    comments = Comment.load_comments(session, path=args.comments_path).persist(StorageLevel.DISK_ONLY)
+    not_just_an_image = ~(col("text").like("()[%]") & ~(col("text").like("()[#s%]") | col("text").like("()[/s%]")))
+    comments = Comment.load_comments(session, path=args.comments_path)\
+        .where(not_just_an_image)\
+        .persist(StorageLevel.DISK_ONLY)
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
 
+    
     posts = Post.load_posts(session, path=args.posts_path).persist(StorageLevel.DISK_ONLY)
     whitelist = [line.strip() for line in args.whitelist.readlines()]
 
