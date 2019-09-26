@@ -4,6 +4,7 @@ import markdown
 import pyspark
 from pyspark.sql.functions import rand
 from reddit_import import util
+from reddit_import.dedup import dedup_min_hash
 from bs4 import BeautifulSoup, NavigableString
 
 SPLITS = [
@@ -19,6 +20,8 @@ def build_parser():
                         help="Output mode of text", default="plain")
     parser.add_argument("--classify", choices=["document", "token"],
                         help="Class labels on token or document level.", default="document")
+    # TODO: temporal splits
+    parser.add_argument("--deduplicate", help="Remove duplicates.", action="store_true")
     parser.add_argument(
         "--comments", nargs="+",
         help="Text files to convert, usually one spoiler and one non spoiler file.",
@@ -52,6 +55,9 @@ def main(args):
     renderer = markdown.Markdown(
         extensions=["spoilers"]
     )
+    comments.cache()
+    if args.deduplicate:
+        comments = dedup_min_hash(comments, "text", "id", min_distance=0.1)
     parsed_comments = comments.select("text", "contains_spoiler", "permalink")\
         .orderBy(rand())\
         .rdd\
