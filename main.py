@@ -30,9 +30,7 @@ def validate_date(date_string):
 
 def main(args):
     session = util.build_session(name="Reddit Subreddit Counts")
-    not_just_an_image = ~(col("text").like("()[%]") & ~(col("text").like("()[#s%]") | col("text").like("()[/s%]")))
     comments = Comment.load_comments(session, path=args.comments_path)\
-        .where(not_just_an_image)\
         .persist(StorageLevel.DISK_ONLY)
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
 
@@ -72,6 +70,7 @@ def main(args):
         print(spoiler_counts_per_sub)
 
         non_spoiler_comments = comments\
+            .filter(~(col("text").like("()[%]")))\
             .filter(comments.distinguished.isNull())\
             .filter(comments.score >= 3)\
             .filter(comments.text != "[deleted]" | comments.author != "[deleted]")\
