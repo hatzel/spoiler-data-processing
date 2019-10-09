@@ -2,7 +2,7 @@
 import argparse
 import markdown
 import pyspark
-from pyspark.sql.functions import rand
+from pyspark.sql.functions import rand, col
 from reddit_import import util
 from reddit_import.dedup import dedup_min_hash
 from bs4 import BeautifulSoup, NavigableString
@@ -20,7 +20,7 @@ def build_parser():
                         help="Output mode of text", default="plain")
     parser.add_argument("--classify", choices=["document", "token"],
                         help="Class labels on token or document level.", default="document")
-    # TODO: temporal splits
+    parser.add_argument("--temporal-splits", help="Split by creation date.", action="store_true")
     parser.add_argument("--deduplicate", help="Remove duplicates.", action="store_true")
     parser.add_argument(
         "--comments", nargs="+",
@@ -49,17 +49,17 @@ def main(args):
     comments = None
     for name in args.comments:
         if comments is None:
-            comments = session.read.json(name)
+            comments = session.read.json(name).drop(col("distinguished"))
         else:
-            comments = comments.unionAll(session.read.json(name))
+            comments = comments.unionAll(session.read.json(name).drop(col("distinguished")))
     renderer = markdown.Markdown(
-        extensions=["spoilers"]
+        extensions=["spoilers", "superscript"]
     )
     comments.cache()
     if args.deduplicate:
-        comments = dedup_min_hash(comments, "text", "id", min_distance=0.1)
-    parsed_comments = comments.select("text", "contains_spoiler", "permalink")\
-        .orderBy(rand())\
+        comments = dedup_min_hash(comments, "text", "id", min_distance=0.05)
+    parsed_comments = comments.select("text", "contains_spoiler", "permalink", comments.created.cast("timestamp"))\
+        .orderBy(comments.created if args.temporal_splits else rand())\
         .rdd\
         .map(lambda row: (
             convert_text(row["text"], args.text_mode, args.classify, renderer),
