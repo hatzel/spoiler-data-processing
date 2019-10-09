@@ -99,8 +99,8 @@ def main(args):
             .filter(~(col("text").like("()[%]")))\
             .filter(comments.distinguished.isNull())\
             .filter(comments.score >= 3)\
-            .filter(comments.text != "[deleted]" | comments.author != "[deleted]")\
-            .filter(comments.text != "[removed]" | comments.author != "[deleted]")\
+            .filter((comments.text != "[deleted]") | (comments.author != "[deleted]"))\
+            .filter((comments.text != "[removed]") | (comments.author != "[deleted]"))\
             .filter(comments.author != "AutoModerator")\
             .filter(comments.contains_spoiler == False)\
             .filter(" or ".join(["subreddit == '%s'" % s for s in whitelist]))\
