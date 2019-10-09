@@ -138,7 +138,7 @@ def save_comment_per_month(session, comments, base_name):
     )
 
 
-def comment_spoilers_per_month_and_sub(session, spoiler_comments):
+def comment_spoilers_per_month_and_sub(session, spoiler_comments, limit_top_n=5):
     spoiler_counts = spoiler_comments\
         .select(date_trunc("month", spoiler_comments.created).alias("month"), "subreddit")\
         .groupby("month", "subreddit")\
@@ -148,7 +148,7 @@ def comment_spoilers_per_month_and_sub(session, spoiler_comments):
         .cache()
     top_subs = spoiler_counts\
         .mapValues(lambda values: sorted(values, key=lambda row: row["count"], reverse=True))\
-        .map(lambda pair: pair[1][:5])\
+        .map(lambda pair: pair[1][:limit_top_n] if limit_top_n is not None else pair[1])\
         .flatMap(lambda rows: [row["subreddit"] for row in rows])\
         .distinct()\
         .collect()
