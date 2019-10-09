@@ -1,9 +1,11 @@
 import reddit_import
 from reddit_import import Comment, Post, util
+from reddit_import.dedup import dedup_min_hash
 import json
 from pyspark import StorageLevel
-from pyspark.sql.functions import desc, date_trunc, col
+from pyspark.sql.functions import desc, date_trunc, col, broadcast
 import argparse
+import hashlib
 from datetime import datetime
 
 
@@ -28,11 +30,35 @@ def validate_date(date_string):
         )
 
 
+def get_duplicate_ids(df, id_col="id", column="text"):
+    return df.select(id_col, column)\
+        .rdd\
+        .map(lambda row: (
+                int.from_bytes(hashlib.md5(row[1].encode("utf-8")).digest(), byteorder="little"),
+                row[0],
+            )
+        ).groupByKey()\
+        .flatMapValues(lambda values: values if len(values) > 1 else [])\
+        .map(lambda row: {"id": row[1]})\
+        .toDF("id: BigInt")
+
+
 def main(args):
     session = util.build_session(name="Reddit Subreddit Counts")
-    comments = Comment.load_comments(session, path=args.comments_path)\
+    all_comments = Comment.load_comments(session, path=args.comments_path)\
         .persist(StorageLevel.DISK_ONLY)
+    duplicate_ids = get_duplicate_ids(all_comments)
+    duplicate_ids.write.json(
+        "duplicates-test-md5-%s.csv" % (session.sparkContext.applicationId)
+    )
+
+    comments = all_comments.join(
+        duplicate_ids, duplicate_ids.id == all_comments.id, "left_anti"
+    ).persist(StorageLevel.DISK_ONLY)
+
+    all_comments.unpersist()
     spoiler_comments = comments.filter(comments.contains_spoiler == True).persist(StorageLevel.MEMORY_AND_DISK)
+
 
     
     posts = Post.load_posts(session, path=args.posts_path).persist(StorageLevel.DISK_ONLY)
