@@ -89,7 +89,7 @@ def main(args):
         spoiler_comments_without_spoiler_posts\
                 .write.json("reddit/spoiler-comments-%s.csv" % session.sparkContext.applicationId)
     if "non_spoiler_comments" in args.collect:
-        spoiler_counts_per_sub = whitelisted_spoiler_comments.groupby("subreddit")\
+        spoiler_counts_per_sub = spoiler_comments_without_spoiler_posts.groupby("subreddit")\
             .count()\
             .collect()
         spoiler_counts_per_sub = {row["subreddit"]: row["count"] for row in spoiler_counts_per_sub}
