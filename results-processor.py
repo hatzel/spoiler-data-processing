@@ -3,6 +3,7 @@ import argparse
 import markdown
 import pyspark
 from pyspark.sql.functions import rand, col
+from pyspark.sql.types import StructType, StructField, StringType, TimestampType, BooleanType
 from reddit_import import util
 from reddit_import.dedup import dedup_min_hash
 from bs4 import BeautifulSoup, NavigableString
@@ -12,6 +13,14 @@ SPLITS = [
     ("dev", 0.1),
     ("test", 0.2),
 ]
+
+
+OUTPUT_SCHEMA = StructType([
+    StructField("text", StringType()),
+    StructField("spoiler", BooleanType()),
+    StructField("permalink", StringType()),
+    StructField("created", TimestampType()),
+])
 
 
 def build_parser():
@@ -65,8 +74,9 @@ def main(args):
             convert_text(row["text"], args.text_mode, args.classify, renderer),
             row["contains_spoiler"],
             row["permalink"],
+            row["created"],
         ))
-    output = session.createDataFrame(parsed_comments, ["text", "spoiler", "permalink"]).cache()
+    output = session.createDataFrame(parsed_comments, schema=OUTPUT_SCHEMA).cache()
     split_data = output.randomSplit([value for _, value in SPLITS], seed=1)
     for i, (split, _) in enumerate(SPLITS):
         split_data[i].write.json(
